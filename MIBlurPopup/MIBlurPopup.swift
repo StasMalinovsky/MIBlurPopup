@@ -9,9 +9,9 @@
 import Foundation
 import UIKit
 
-public protocol MIBlurPopupDelegate: class {
+@objc public protocol MIBlurPopupDelegate: class {
     var popupView: UIView { get }
-    var blurEffectStyle: UIBlurEffectStyle { get }
+    @objc optional var blurEffectStyle: UIBlurEffectStyle { get }
     var initialScaleAmmount: CGFloat { get }
     var animationDuration: TimeInterval { get }
 }
@@ -23,7 +23,7 @@ open class MIBlurPopup: NSObject {
     private var visualEffectBlurView = UIVisualEffectView()
     private var isPresenting = false
     
-    open static func show(_ viewControllerToPresent: UIViewController, on parentViewController: UIViewController) {
+    open static func show(_ viewControllerToPresent: UIViewController, on parentViewController: UIViewController, _ completion: (() -> Void)? = nil) {
         
         viewControllerToPresent.modalPresentationStyle = .overCurrentContext
         viewControllerToPresent.transitioningDelegate = shared
@@ -32,7 +32,7 @@ open class MIBlurPopup: NSObject {
             assertionFailure("ERROR: \(viewControllerToPresent) does not conform to protocol 'MIBlurPopupDelegate'")
         }
         
-        parentViewController.present(viewControllerToPresent, animated: true, completion: nil)
+        parentViewController.present(viewControllerToPresent, animated: true, completion: completion)
     }
     
     private func animatePresent(transitionContext: UIViewControllerContextTransitioning) {
@@ -42,6 +42,7 @@ open class MIBlurPopup: NSObject {
             else { return }
         
         presentedViewController.view.alpha = 0
+        presentedViewController.view.frame = transitionContext.containerView.bounds
         
         transitionContext.containerView.addSubview(presentedViewController.view)
         
@@ -68,7 +69,9 @@ open class MIBlurPopup: NSObject {
         
         // blur view animation workaround: need that to avoid the "blur-flashes"
         UIView.animate(withDuration: transitionDuration(using: transitionContext) * 0.75) {
-            self.visualEffectBlurView.effect = UIBlurEffect(style: presentedControllerDelegate.blurEffectStyle)
+            if let blurEffectStyle = presentedControllerDelegate.blurEffectStyle {
+                self.visualEffectBlurView.effect = UIBlurEffect(style: blurEffectStyle)
+            }
         }
         
         UIView.animate(
@@ -81,10 +84,10 @@ open class MIBlurPopup: NSObject {
                 presentedViewController.view.alpha = 1
                 presentedControllerDelegate.popupView.alpha = 1
                 presentedControllerDelegate.popupView.transform = CGAffineTransform(scaleX: 1, y: 1)
-            },
+        },
             completion: { isCompleted in
                 transitionContext.completeTransition(isCompleted)
-            }
+        }
         )
     }
     
@@ -105,12 +108,12 @@ open class MIBlurPopup: NSObject {
                 self.visualEffectBlurView.alpha = 0
                 presentedControllerDelegate.popupView.transform = CGAffineTransform(scaleX: presentedControllerDelegate.initialScaleAmmount,
                                                                                     y: presentedControllerDelegate.initialScaleAmmount)
-            },
+        },
             completion: { isCompleted in
                 self.visualEffectBlurView.effect = nil
                 self.visualEffectBlurView.removeFromSuperview()
                 transitionContext.completeTransition(isCompleted)
-            }
+        }
         )
     }
     
